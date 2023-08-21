@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 
+NAME=wav2lip
+
 set -x
 
-docker rm -f cog-wav2lip
+docker rm -f $NAME
 
+docker build . -t $NAME
 docker run -d --restart always \
-  --name cog-wav2lip \
+  --name $NAME \
   -v $PWD/checkpoints:/src/checkpoints \
   -p 5001:5000 \
   --gpus all \
-  r8.im/devxpy/cog-wav2lip
+  $NAME
 
-docker logs -f cog-wav2lip
+docker logs -f $NAME
