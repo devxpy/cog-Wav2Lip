@@ -302,7 +302,7 @@ def do_load(checkpoint_path):
     print("Models loaded")
 
 
-face_batch_size = 64 * 8
+face_batch_size = 8
 
 def face_rect(images):
     num_batches = math.ceil(len(images) / face_batch_size)
