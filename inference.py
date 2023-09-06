@@ -8,6 +8,10 @@ import cv2
 import numpy as np
 import torch
 from tqdm import tqdm
+from esrgan.upsample import upscale
+from esrgan.upsample import load_sr
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from basicsr.utils.download_util import load_file_from_url
 
 import audio
 # from face_detect import face_rect
@@ -59,6 +63,14 @@ parser.add_argument('--rotate', default=False, action='store_true',
 parser.add_argument('--nosmooth', default=False, action='store_true',
                     help='Prevent smoothing face detections over a short temporal window')
 
+parser.add_argument('--no_sr', default=False, action='store_true',
+			          		help='Prevent using super resolution')
+
+parser.add_argument('--sr_path', type=str, default='weights/4x_BigFace_v3_Clear.pth', 
+					help='Name of saved checkpoint of super-resolution network', required=False)
+
+parser.add_argument('--enhance_face', default='gfpgan', choices=['gfpgan','codeformer'],
+					help='Use GFP-GAN to enhance facial details.')
 
 def get_smoothened_boxes(boxes, T):
     for i in range(len(boxes)):
@@ -254,8 +266,12 @@ def main():
     for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
                                             total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
         if i == 0:
-            frame_h, frame_w = full_frames[0].shape[:-1]
-            out = cv2.VideoWriter('temp/result.avi',
+          if not args.no_sr==True:
+            print("Loading gfpgan...")
+            run_params = load_sr(args.sr_path, device, args.enhance_face)
+            
+          frame_h, frame_w = full_frames[0].shape[:-1]
+          out = cv2.VideoWriter('temp/result.avi',
                                     cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
 
         img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
@@ -268,6 +284,10 @@ def main():
 
         for p, f, c in zip(pred, frames, coords):
             y1, y2, x1, x2 = c
+
+            if not args.no_sr:
+              p = upscale(p, 1, run_params)
+
             p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
 
             f[y1:y2, x1:x2] = p
