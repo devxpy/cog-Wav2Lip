@@ -226,11 +226,11 @@ def main():
     print ("Number of frames available for inference: "+str(len(full_frames)))
 
     if not args.audio.endswith('.wav'):
-        print('Extracting raw audio...')
+        print('Converting audio to .wav')
         # command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
         # subprocess.call(command, shell=True)
         subprocess.check_call([
-            "ffmpeg", "-y",
+            "ffmpeg", "-y", "-loglevel", "error",
             "-i", args.audio,
             "temp/temp.wav",
         ])
@@ -271,9 +271,8 @@ def main():
             run_params = load_sr(args.sr_path, device, args.enhance_face)
             
           frame_h, frame_w = full_frames[0].shape[:-1]
-          out = cv2.VideoWriter('temp/result.avi',
-                                    cv2.VideoWriter_fourcc(*'DIVX'), fps, (frame_w, frame_h))
-
+          out = cv2.VideoWriter('temp/result.mp4',
+                                  cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_w, frame_h))
         img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
         mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
 
@@ -300,13 +299,13 @@ def main():
 
 
     subprocess.check_call([
-        "ffmpeg", "-y", "-loglevel", "quiet",
-        # "-vsync", "0", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda",
-        "-i", "temp/result.avi",
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", "temp/result.mp4",
         "-i", args.audio,
-        # "-c:v", "h264_nvenc",
+        "-c:v", "h264_nvenc",
         args.outfile ,
     ])
+
 
 model = detector = detector_model = None
 
