@@ -13,6 +13,9 @@ from basicsr.utils import imwrite, img2tensor, tensor2img
 from torchvision.transforms.functional import normalize
 from basicsr.utils.registry import ARCH_REGISTRY
 
+import warnings
+warnings.filterwarnings("ignore")
+
 def load_sr(model_path, device, face):
     if not face=='codeformer':
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4) #alter to match dims as needed
