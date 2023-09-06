@@ -295,15 +295,17 @@ def main():
 
     out.release()
 
-    print("wav2lip prediction time:", time() - s)
+    print("wav2lip completion time:", time() - s)
+    print("converting to final video")
+
 
     subprocess.check_call([
-        "ffmpeg", "-y",
+        "ffmpeg", "-y", "-loglevel", "quiet",
         # "-vsync", "0", "-hwaccel", "cuda", "-hwaccel_output_format", "cuda",
         "-i", "temp/result.avi",
         "-i", args.audio,
         # "-c:v", "h264_nvenc",
-        args.outfile,
+        args.outfile ,
     ])
 
 model = detector = detector_model = None
