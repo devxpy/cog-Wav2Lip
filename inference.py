@@ -269,7 +269,8 @@ def main():
           if not args.no_sr==True:
             print("Loading gfpgan...")
             run_params = load_sr(args.sr_path, device, args.enhance_face)
-            
+            print("starting wav2lip with gfpgan...")
+
           frame_h, frame_w = full_frames[0].shape[:-1]
           out = cv2.VideoWriter('temp/result.mp4',
                                   cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_w, frame_h))
