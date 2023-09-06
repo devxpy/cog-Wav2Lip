@@ -2,6 +2,7 @@ import torch
 import subprocess
 import json
 from models import Wav2Lip
+from base64 import b64encode
 device = 'cuda'
 
 def get_video_details(filename):
