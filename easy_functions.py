@@ -1,6 +1,7 @@
 import subprocess
 import json
 from models import Wav2Lip
+device = 'cuda'
 
 def get_video_details(filename):
   cmd = ['ffprobe', '-v', 'error', '-show_format', '-show_streams', '-of', 'json', filename]
