@@ -12,6 +12,7 @@ from esrgan.upsample import upscale
 from esrgan.upsample import load_sr
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from basicsr.utils.download_util import load_file_from_url
+from face_parsing import init_parser, swap_regions
 
 import audio
 # from face_detect import face_rect
@@ -24,6 +25,9 @@ parser = argparse.ArgumentParser(description='Inference code to lip-sync videos 
 
 parser.add_argument('--checkpoint_path', type=str, 
                     help='Name of saved checkpoint to load weights from', required=True)
+
+parser.add_argument('--segmentation_path', type=str, default="checkpoints/face_segmentation.pth",
+					help='Name of saved checkpoint of segmentation network', required=False)
 
 parser.add_argument('--face', type=str, 
                     help='Filepath of video/image that contains faces to use', required=True)
@@ -40,7 +44,7 @@ parser.add_argument('--fps', type=float, help='Can be specified only if input is
 parser.add_argument('--pads', nargs='+', type=int, default=[0, 10, 0, 0], 
                     help='Padding (top, bottom, left, right). Please adjust to include chin at least')
 
-parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=128)
+parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=2)
 
 # parser.add_argument('--resize_factor', default=1, type=int,
 #             help='Reduce the resolution by this factor. Sometimes, best results are obtained at 480p or 720p')
@@ -62,6 +66,9 @@ parser.add_argument('--rotate', default=False, action='store_true',
 
 parser.add_argument('--nosmooth', default=False, action='store_true',
                     help='Prevent smoothing face detections over a short temporal window')
+
+parser.add_argument('--no_seg', default=False, action='store_true',
+					help='Prevent using face segmentation')
 
 parser.add_argument('--no_sr', default=False, action='store_true',
 			          		help='Prevent using super resolution')
@@ -266,14 +273,18 @@ def main():
     for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
                                             total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
         if i == 0:
-          if not args.no_sr==True:
-            print("Loading gfpgan...")
-            run_params = load_sr(args.sr_path, device, args.enhance_face)
-            print("starting wav2lip with gfpgan...")
+          if not args.no_seg==True:
+            print("Loading segmentation network")
+            seg_net = init_parser(args.segmentation_path)
 
+          if not args.no_sr==True:
+            print("Loading gfpgan")
+            run_params = load_sr(args.sr_path, device, args.enhance_face)
+       
+          print("Starting...")
           frame_h, frame_w = full_frames[0].shape[:-1]
-          out = cv2.VideoWriter('temp/result.mp4',
-                                  cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_w, frame_h))
+          out = cv2.VideoWriter('temp/result.avi',
+                                  cv2.VideoWriter_fourcc(*'MJPG'), fps, (frame_w, frame_h))
         img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(device)
         mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(device)
 
@@ -284,6 +295,9 @@ def main():
 
         for p, f, c in zip(pred, frames, coords):
             y1, y2, x1, x2 = c
+
+            if args.no_seg==False:
+              p = swap_regions(f[y1:y2, x1:x2], p, seg_net)
 
             if not args.no_sr:
               p = upscale(p, 1, run_params)
@@ -301,7 +315,7 @@ def main():
 
     subprocess.check_call([
         "ffmpeg", "-y", "-loglevel", "error",
-        "-i", "temp/result.mp4",
+        "-i", "temp/result.avi",
         "-i", args.audio,
         "-c:v", "h264_nvenc",
         args.outfile ,
