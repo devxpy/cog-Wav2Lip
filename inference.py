@@ -73,8 +73,8 @@ parser.add_argument('--no_seg', default=False, action='store_true',
 parser.add_argument('--no_sr', default=False, action='store_true',
 			          		help='Prevent using super resolution')
 
-parser.add_argument('--sr_path', type=str, default='weights/4x_BigFace_v3_Clear.pth', 
-					help='Name of saved checkpoint of super-resolution network', required=False)
+parser.add_argument('--sr_model', type=str, default='gfpgan', 
+					help='Name of upscaler - gfpgan or RestoreFormer', required=False)
 
 parser.add_argument('--enhance_face', default='gfpgan', choices=['gfpgan','codeformer'],
 					help='Use GFP-GAN to enhance facial details.')
