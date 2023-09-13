@@ -44,7 +44,7 @@ parser.add_argument('--fps', type=float, help='Can be specified only if input is
 parser.add_argument('--pads', nargs='+', type=int, default=[0, 10, 0, 0], 
                     help='Padding (top, bottom, left, right). Please adjust to include chin at least')
 
-parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=2)
+parser.add_argument('--wav2lip_batch_size', type=int, help='Batch size for Wav2Lip model(s)', default=1)
 
 # parser.add_argument('--resize_factor', default=1, type=int,
 #             help='Reduce the resolution by this factor. Sometimes, best results are obtained at 480p or 720p')
@@ -273,13 +273,14 @@ def main():
     for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
                                             total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
         if i == 0:
-          if not args.no_seg==True:
-            print("Loading segmentation network")
-            seg_net = init_parser(args.segmentation_path)
-
+          
           if not args.no_sr==True:
             print("Loading gfpgan")
             run_params = load_sr(args.sr_path, device, args.enhance_face)
+
+          if not args.no_seg==True:
+            print("Loading segmentation network")
+            seg_net = init_parser(args.segmentation_path)
        
           print("Starting...")
           frame_h, frame_w = full_frames[0].shape[:-1]
