@@ -276,7 +276,7 @@ def main():
           
           if not args.no_sr==True:
             print("Loading gfpgan")
-            run_params = load_sr(args.sr_path, device, args.enhance_face)
+            run_params = load_sr(args.sr_model)
 
           if not args.no_seg==True:
             print("Loading segmentation network")
@@ -301,7 +301,7 @@ def main():
               p = swap_regions(f[y1:y2, x1:x2], p, seg_net)
 
             if not args.no_sr:
-              p = upscale(p, 1, run_params)
+              p = upscale(p, run_params)
 
             p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
 
