@@ -7,14 +7,14 @@ from gfpgan import GFPGANer
 warnings.filterwarnings("ignore")
 
 def load_sr(model):
-  if model = 'gfpgan':
+  if model == 'gfpgan':
     run_params = GFPGANer(
       model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth',
       upscale=1,
       arch='clean',
       channel_multiplier=2,
       bg_upsampler=None)
-  elif model = 'RestoreFormer':
+  elif model == 'RestoreFormer':
     run_params = GFPGANer(
       model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/RestoreFormer.pth',
       upscale=1,
