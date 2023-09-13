@@ -13,7 +13,7 @@ def load_sr(model_path, device, face):
       channel_multiplier=2,
       bg_upsampler=None)
 
-    '''run_params = GFPGANer(
+  '''run_params = GFPGANer(
       model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/RestoreFormer.pth',
       upscale=1,
       arch='RestoreFormer',
