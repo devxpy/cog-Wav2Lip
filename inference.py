@@ -76,8 +76,11 @@ parser.add_argument('--no_sr', default=False, action='store_true',
 parser.add_argument('--sr_model', type=str, default='gfpgan', 
 					help='Name of upscaler - gfpgan or RestoreFormer', required=False)
 
-parser.add_argument('--enhance_face', default='gfpgan', choices=['gfpgan','codeformer'],
-					help='Use GFP-GAN to enhance facial details.')
+parser.add_argument('--fullres', default=3, type=int,
+            help='used only to determine if full res is used so that no resizing needs to be done if so')
+
+parser.add_argument('--subtle_upscaling', default=False, action='store_true', 
+                    help='Makes the face enhance less obvious')
 
 def get_smoothened_boxes(boxes, T):
     for i in range(len(boxes)):
@@ -106,7 +109,7 @@ def face_detect(images):
 
         results.append([x1, y1, x2, y2])
     print()
-    print('face detect time:', time() - s)
+    print('face detect time:', int(time() - s),'seconds')
 
     boxes = np.array(results)
     if not args.nosmooth: boxes = get_smoothened_boxes(boxes, T=5)
@@ -165,7 +168,7 @@ def datagen(frames, mels):
 
 mel_step_size = 16
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Using {} for inference.'.format(device))
+#rint('Using {} for inference.'.format(device))
 
 def _load(checkpoint_path):
     if device == 'cuda':
@@ -177,7 +180,7 @@ def _load(checkpoint_path):
 
 def load_model(path):
     model = Wav2Lip()
-    print("Load checkpoint from: {}".format(path))
+    print("Loading {}".format(path))
     checkpoint = _load(path)
     s = checkpoint["state_dict"]
     new_s = {}
@@ -205,8 +208,6 @@ def main():
         video_stream = cv2.VideoCapture(args.face)
         fps = video_stream.get(cv2.CAP_PROP_FPS)
 
-        print('Reading video frames...')
-
         full_frames = []
         while 1:
             still_reading, frame = video_stream.read()
@@ -214,10 +215,12 @@ def main():
                 video_stream.release()
                 break
 
-            aspect_ratio = frame.shape[1] / frame.shape[0]
-            frame = cv2.resize(frame, (int(args.out_height * aspect_ratio), args.out_height))
-            # if args.resize_factor > 1:
-            #     frame = cv2.resize(frame, (frame.shape[1]//args.resize_factor, frame.shape[0]//args.resize_factor))
+            if args.fullres != 1:
+                print('Resizing video...')
+                aspect_ratio = frame.shape[1] / frame.shape[0]
+                frame = cv2.resize(frame, (int(args.out_height * aspect_ratio), args.out_height))
+                # if args.resize_factor > 1:
+                #     frame = cv2.resize(frame, (frame.shape[1]//args.resize_factor, frame.shape[0]//args.resize_factor))
 
             if args.rotate:
                 frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
@@ -230,7 +233,7 @@ def main():
 
             full_frames.append(frame)
 
-    print ("Number of frames available for inference: "+str(len(full_frames)))
+    print ("Number of frames to process: "+str(len(full_frames)))
 
     if not args.audio.endswith('.wav'):
         print('Converting audio to .wav')
@@ -245,11 +248,11 @@ def main():
 
     wav = audio.load_wav(args.audio, 16000)
     mel = audio.melspectrogram(wav)
-    print(mel.shape)
+    #print(mel.shape)
 
     if np.isnan(mel.reshape(-1)).sum() > 0:
         raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
-
+    
     mel_chunks = []
     mel_idx_multiplier = 80./fps
     i = 0
@@ -259,9 +262,10 @@ def main():
             mel_chunks.append(mel[:, len(mel[0]) - mel_step_size:])
             break
         mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
-        i += 1
+        i += 1;
 
-    print("Length of mel chunks: {}".format(len(mel_chunks)))
+    #print("Length of mel chunks: {}".format(len(mel_chunks)))
+    print('detecting face in every frame...')
 
     full_frames = full_frames[:len(mel_chunks)]
 
@@ -273,15 +277,15 @@ def main():
     for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
                                             total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
         if i == 0:
-          
-          if not args.no_sr==True:
-            print("Loading gfpgan")
-            run_params = load_sr(args.sr_model)
 
           if not args.no_seg==True:
-            print("Loading segmentation network")
+            print("Loading mask")
             seg_net = init_parser(args.segmentation_path)
-       
+          
+          if not args.no_sr==True:
+            print("Loading", args.sr_model)
+            run_params = load_sr(args.sr_model)
+
           print("Starting...")
           frame_h, frame_w = full_frames[0].shape[:-1]
           out = cv2.VideoWriter('temp/result.avi',
@@ -297,15 +301,24 @@ def main():
         for p, f, c in zip(pred, frames, coords):
             y1, y2, x1, x2 = c
 
-            if args.no_seg==False:
-              p = swap_regions(f[y1:y2, x1:x2], p, seg_net)
+            if args.subtle_upscaling: #do upscaling before mask
+                if not args.no_sr:
+                    p = upscale(p, run_params)
 
-            if not args.no_sr:
-              p = upscale(p, run_params)
+                if args.no_seg==False:
+                    p = swap_regions(f[y1:y2, x1:x2], p, seg_net)
+            else: #do upscaling after mask
+                if args.no_seg==False:
+                    p = swap_regions(f[y1:y2, x1:x2], p, seg_net)
+
+                if not args.no_sr:
+                    p = upscale(p, run_params)
+
 
             p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
 
             f[y1:y2, x1:x2] = p
+
             out.write(f)
 
     out.release()
@@ -336,7 +349,7 @@ def do_load(checkpoint_path):
 
     detector_model = detector.model
 
-    print("Models loaded")
+    #print("Models loaded")
 
 
 face_batch_size = 8
