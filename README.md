@@ -1,4 +1,4 @@
-The inference is successfully working on Google COLAB.
+I have modified some code to make the repo work on GOOGLE COLAB. The INFERENCE is successfully tested on Google COLAB.
 
 # **Wav2Lip**: *Accurately Lip-syncing Videos In The Wild*
 
